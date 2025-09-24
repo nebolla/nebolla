@@ -1,0 +1,7 @@
+{
+  "name":"nebolla-codespace",
+  "image":"mcr.microsoft.com/devcontainers/javascript-node:20",
+  "postCreateCommand":"pnpm i || true",
+  "forwardPorts":[3000,5432],
+  "customizations":{"vscode":{"extensions":["Prisma.prisma","esbenp.prettier-vscode","dbaeumer.vscode-eslint"]}}
+}

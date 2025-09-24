@@ -1,0 +1,137 @@
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+generator client { provider = "prisma-client-js" }
+
+enum Role { PARTNER ADMIN SUPERADMIN }
+enum Chain { TRC20 BEP20 }
+enum DepositStatus { PENDING APPROVED REJECTED }
+enum WithdrawalStatus { PENDING APPROVED REJECTED PAID }
+enum Pool { VIP ELITE }
+enum AccountType { ASSET LIABILITY INCOME EXPENSE EQUITY }
+
+model User {
+  id           String   @id @default(cuid())
+  partnerId    String   @unique
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(PARTNER)
+  referralCode String   @unique
+  referredById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  deposits     Deposit[]
+  purchases    Purchase[]
+  withdrawals  WithdrawalRequest[]
+}
+
+model Ancestry {
+  ancestorId   String
+  descendantId String
+  depth        Int
+  createdAt    DateTime @default(now())
+  @@id([ancestorId, descendantId, depth])
+}
+
+model Settings {
+  id               Int     @id @default(1)
+  nebPriceUSD      Decimal @default(1)
+  minBuyUSD        Decimal @default(10)
+  maxBuyUSD        Decimal @default(100000)
+  minWithdrawalUSD Decimal @default(20)
+  maxWithdrawalUSD Decimal @default(100000)
+  withdrawFeePct   Decimal @default(5)
+  trc20USDTAddress String
+  bep20USDTAddress String
+}
+
+model Deposit {
+  id            String   @id @default(cuid())
+  userId        String
+  amountUSD     Decimal
+  chain         Chain
+  screenshotUrl String
+  status        DepositStatus @default(PENDING)
+  approvedBy    String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+  purchase      Purchase?
+}
+
+model Purchase {
+  id        String   @id @default(cuid())
+  userId    String
+  depositId String?  @unique
+  amountUSD Decimal
+  nebAmount Decimal
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Commission {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  fromUserId  String
+  toUserId    String
+  level       Int
+  percent     Decimal
+  amountUSD   Decimal
+  createdAt   DateTime @default(now())
+}
+
+model PoolContribution {
+  id         String   @id @default(cuid())
+  purchaseId String
+  pool       Pool
+  amountUSD  Decimal
+  createdAt  DateTime @default(now())
+}
+
+model WithdrawalRequest {
+  id            String   @id @default(cuid())
+  userId        String
+  amountUSD     Decimal
+  feeUSD        Decimal
+  netUSD        Decimal
+  chain         Chain
+  walletAddress String
+  status        WithdrawalStatus @default(PENDING)
+  approvedBy    String?
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model LedgerAccount {
+  id      String      @id @default(cuid())
+  userId  String?
+  code    String      @unique   // e.g., LIAB:USER:<id>:NEB
+  name    String
+  type    AccountType
+  createdAt DateTime  @default(now())
+}
+
+model LedgerTxn {
+  id        String   @id @default(cuid())
+  refType   String
+  refId     String
+  createdAt DateTime @default(now())
+  entries   LedgerEntry[]
+}
+
+model LedgerEntry {
+  id        String   @id @default(cuid())
+  txnId     String
+  accountId String
+  debit     Decimal  @default(0)
+  credit    Decimal  @default(0)
+  createdAt DateTime @default(now())
+  txn       LedgerTxn    @relation(fields: [txnId], references: [id])
+  account   LedgerAccount @relation(fields: [accountId], references: [id])
+}
